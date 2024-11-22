@@ -1,0 +1,268 @@
+
+#include<ECE3.h>
+
+uint16_t sensorValues[8];
+
+//Calibration Variables
+int minimums[8] = {643, 573, 572, 458, 526, 503, 597, 573};
+int maximums[8] = {1857, 1916, 1928, 705, 1276, 1275, 1845, 1927};
+int weights[8] = {15, 14, 12, 8, -8, -12, -14, -15};
+int error_value=0;
+float kp = 0.015;
+float kd = 0.04;
+float current = 0;
+float past = 0;
+float difference = 0;
+bool run = true;
+
+
+//car variables
+const int left_nslp_pin=31;
+const int right_nslp_pin=11;
+const int left_dir_pin=29;
+const int right_dir_pin=30;
+const int left_pwm_pin=40;
+const int right_pwm_pin=39;
+
+const int LED_RF = 41;
+int wheel_speed = 30;
+int distance = 800;
+
+// Track position variables
+int track_position = 0;
+const int END_TRACK = 5000; //ADJUST
+const int LOOP_1_FORWARD = 1000; //ADJUST
+const int LOOP_2_FORWARD = 2000; //ADJUST
+const int LOOP_1_BACKWARD = 4000; //ADJUST
+const int LOOP_2_BACKWARD = 3000; //ADJUST
+bool is_forward = true;
+int lap_count = 0;
+
+
+//averge pulse count
+int average()
+{
+  int get_l = getEncoderCount_left();
+  int get_r = getEncoderCount_right();
+  return ((get_l+get_r)/2);
+}
+
+void stop()
+{
+   analogWrite(left_pwm_pin,0);
+   analogWrite(right_pwm_pin,0);
+}
+
+void turn_180()
+{
+  int initial_count = average();
+  int target_count = initial_count + 360; //ADJUST
+  
+  digitalWrite(left_dir_pin, HIGH);  // Set left wheel forward
+  digitalWrite(right_dir_pin, LOW);  // Set right wheel backward
+  analogWrite(left_pwm_pin,30);
+  analogWrite(right_pwm_pin,-30);
+
+  while (average() < target_count)
+  {
+    analogWrite(left_pwm_pin, 30);
+    analogWrite(right_pwm_pin, 30);
+  }
+  
+  stop();
+  digitalWrite(left_dir_pin, HIGH);
+  digitalWrite(right_dir_pin, HIGH);
+  is_forward = !is_forward;
+
+}
+
+void turn_270()
+{
+  int initial_count = average();
+  int target_count = initial_count + 270;  // ADJUST
+
+
+  digitalWrite(left_dir_pin, HIGH);  // Set left wheel forward
+  digitalWrite(right_dir_pin, LOW);  // Set right wheel backward
+  
+  if (is_forward) 
+  {
+    digitalWrite(left_dir_pin, HIGH);  // Set left wheel forward
+    digitalWrite(right_dir_pin, LOW);  // Set right wheel backward
+  } 
+  else 
+  {
+    digitalWrite(left_dir_pin, LOW);   // Set left wheel backward
+    digitalWrite(right_dir_pin, HIGH); // Set right wheel forward
+  }
+
+  while (abs(average() - initial_count) < target_count) 
+  {
+    analogWrite(left_pwm_pin, 40);
+    analogWrite(right_pwm_pin, 40);
+  }
+  
+  stop();
+  digitalWrite(left_dir_pin, HIGH);
+  digitalWrite(right_dir_pin, HIGH);
+}
+
+void turn_180_tight()
+{
+  int initial_count = average();
+  int target_count = initial_count + 180;  // ADJUST
+
+  if (is_forward) {
+    digitalWrite(left_dir_pin, HIGH);  // Set left wheel forward
+    digitalWrite(right_dir_pin, LOW);  // Set right wheel backward
+  } else {
+    digitalWrite(left_dir_pin, LOW);   // Set left wheel backward
+    digitalWrite(right_dir_pin, HIGH); // Set right wheel forward
+  }
+  
+  while (abs(average() - initial_count) < target_count) 
+  {
+    analogWrite(left_pwm_pin, 35);
+    analogWrite(right_pwm_pin, 35);
+  }
+  
+  stop();
+  digitalWrite(left_dir_pin, HIGH);
+  digitalWrite(right_dir_pin, HIGH);
+}
+
+bool end_of_track()
+{
+  ECE3_read_IR(sensorValues);
+  int threshold = 2000;  // ADJUST
+  for (int i = 0; i < 8; i++) 
+  {
+    if (sensorValues[i] < threshold) 
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+void setup() 
+{
+  ECE3_Init();
+  Serial.begin(9600); // set the data rate in bits per second for serial data transmission
+
+  pinMode(left_nslp_pin, OUTPUT);
+  pinMode(left_dir_pin,OUTPUT);
+  pinMode(left_pwm_pin,OUTPUT);
+  pinMode(right_nslp_pin,OUTPUT);
+  pinMode(right_dir_pin,OUTPUT);
+  pinMode(right_pwm_pin,OUTPUT);
+
+  pinMode(LED_RF,OUTPUT);
+  digitalWrite(left_nslp_pin,HIGH);
+  digitalWrite(right_nslp_pin,HIGH);
+
+  resetEncoderCount_left();
+  resetEncoderCount_right();
+ 
+ // delay(2000); //wait 2 seconds before starting
+}
+
+void loop() 
+{
+  track_position = average(); //update track position
+
+  //Check for end of track
+   if (end_of_track() || track_position >= END_TRACK) 
+   {
+    turn_180();
+    resetEncoderCount_left();
+    resetEncoderCount_right();
+    track_position = 0;
+    lap_count++;
+    if (lap_count >= 4) 
+    {
+      stop();
+      while(1); // Stop the car after 2 complete laps
+    }
+    return;
+  }
+  
+  // Check for tight loops
+  if ((is_forward && track_position == LOOP_1_FORWARD) || (!is_forward && track_position == LOOP_1_BACKWARD)) 
+  {
+    turn_270();
+    return;
+  }
+  
+  if ((is_forward && track_position == LOOP_2_FORWARD) || (!is_forward && track_position == LOOP_2_BACKWARD)) {
+    turn_180_tight();
+    return;
+  }
+
+
+  
+  int summed_values[8] = {0};
+  error_value=0;
+
+  // Read raw sensor values
+  ECE3_read_IR(sensorValues);
+
+  // Add the current sensor values using a for loop
+  for (unsigned char i = 0; i < 8; i++)
+  {
+    summed_values[i] = sensorValues[i];
+    summed_values[i] -= minimums[i];
+    summed_values[i]= 1000*summed_values[i]/maximums[i];
+    summed_values[i] *= weights[i];
+    error_value += summed_values[i];
+   }
+
+ error_value*=kp;
+ error_value -=200;
+ current = error_value;
+ difference = current - past;
+ //Serial.println(error_value);
+
+  if (error_value < 0) //off track on the right
+  {
+//    if (abs(((error_value)+(kd*difference))) > wheel_speed)
+//    {
+//      analogWrite(left_pwm_pin, 0);
+//
+//    }
+//    else
+//    {
+//      analogWrite(left_pwm_pin,wheel_speed+((error_value)+(kd*difference)));
+//    }
+//    analogWrite(right_pwm_pin,wheel_speed);
+    //Serial.println((error_value)+(kd*difference));
+
+    int left_speed = wheel_speed+((error_value)+(kd*difference));
+    left_speed = max(0, min(left_speed, wheel_speed));
+    analogWrite(left_pwm_pin, left_speed);
+    analogWrite(right_pwm_pin,wheel_speed);
+  }
+  else if (error_value > 0) //off track on the left
+  {
+//    analogWrite(left_pwm_pin,wheel_speed);
+//    if (((error_value)-(kd*difference)) > wheel_speed)
+//    {
+//      analogWrite(right_pwm_pin,0);
+//    }
+//    else
+//    {
+//      analogWrite(right_pwm_pin,wheel_speed-((error_value)-(kd*difference)));
+//    }
+    //Serial.println((error_value)+(kd*difference));
+    int right_speed = wheel_speed-((error_value)-(kd*difference));
+    right_speed = max(0, min(right_speed, wheel_speed));
+    analogWrite(left_pwm_pin,wheel_speed);
+    analogWrite(right_pwm_pin, right_speed);
+  }
+
+  //TESTING ENCODER COUNT
+  Serial.print("Encoder count: ");
+  Serial.println(average());
+
+  past = current;
+}
