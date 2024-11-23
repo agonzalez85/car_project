@@ -25,19 +25,19 @@ const int LED_RF = 41;
 int wheel_speed = 30;
 const int TURN_SPEED = 40; // ADJUST
 const int TURN_270_COUNT = 555; // ADJUST
-const int TURN_HALF_COUNT = 125; //ADJUST
+const int TURN_HALF_COUNT = 200; //ADJUST
 const int TURN_180_COUNT = 350; //ADJUST
 
 // Track position variables
 int track_position = 0;
-const int LOOP_1_FORWARD = 420; //ADJUST
-const int HALF_LOOP_FORWARD = 1500; //ADJUST
-const int LOOP_2_FORWARD = 3050; //ADJUST
-const int END_POINT_1 = 5480; //ADJUST
-const int LOOP_2_BACKWARD = 8024; //ADJUST
-const int HALF_LOOP_BACKWARD = 9500; //ADJUST
-const int LOOP_1_BACKWARD = 10274; //ADJUST
-const int FINAL_END = 11350; //ADJUST
+const int LOOP_1_FORWARD = 440; 
+const int HALF_LOOP_FORWARD = 1500; 
+const int LOOP_2_FORWARD = 3500; 
+const int END_POINT_1 = 6150; //ADJUST
+const int LOOP_2_BACKWARD = 8930; //ADJUST
+const int HALF_LOOP_BACKWARD = 10870; //ADJUST
+const int LOOP_1_BACKWARD = 11600; //ADJUST
+const int FINAL_END = 12700; //ADJUST
 
 bool is_forward = true;
 
@@ -77,18 +77,18 @@ void turn_270_forward()
   digitalWrite(right_dir_pin, LOW);
 }
 
-void turn_half_loop_forward() 
+void turn_half_forward() 
 {
   int initial_count = average();
   int target_count = initial_count + TURN_HALF_COUNT; // Adjust this as needed
   
-  digitalWrite(left_dir_pin, LOW);    // Left wheel forward
-  digitalWrite(right_dir_pin, HIGH);  // Right wheel backward
+  digitalWrite(left_dir_pin, HIGH);    // Left wheel forward
+  digitalWrite(right_dir_pin, LOW);  // Right wheel backward
   
   while (average() < target_count) 
   {
     analogWrite(left_pwm_pin, TURN_SPEED);        // Left wheel at full turn speed
-    analogWrite(right_pwm_pin, TURN_SPEED * 0.5); // Right wheel slightly slower
+    analogWrite(right_pwm_pin, TURN_SPEED * 0.9); // Right wheel slightly slower
   }
   
   stop_car();
@@ -101,7 +101,7 @@ void turn_half_loop_forward()
 void turn_180_forward() 
 {
   int initial_count = average();
-  int target_count = initial_count + TURN_180_COUNT-20;
+  int target_count = initial_count + TURN_180_COUNT-110;
   
   digitalWrite(left_dir_pin, LOW);   // Left wheel forward
   digitalWrite(right_dir_pin, HIGH);   // Right wheel backward
@@ -142,7 +142,7 @@ void turn_180()
 void turn_180_backward() 
 {
   int initial_count = average();
-  int target_count = initial_count + TURN_180_COUNT-20;
+  int target_count = initial_count + TURN_180_COUNT-110;
   
   digitalWrite(left_dir_pin, HIGH);    // Left wheel backward
   digitalWrite(right_dir_pin, LOW);  // Right wheel forward
@@ -179,17 +179,17 @@ void turn_270_backward()
   digitalWrite(right_dir_pin, LOW);
 }
 
-void turn_half_loop_backward() 
+void turn_half_backward() 
 {
     int initial_count = average();
-    int target_count = initial_count + TURN_HALF_COUNT; // Sharp turn for half loop
+    int target_count = initial_count + TURN_HALF_COUNT-40; // Sharp turn for half loop
     
-    digitalWrite(left_dir_pin, HIGH);   // Left wheel backward
-    digitalWrite(right_dir_pin, LOW);   // Right wheel forward
+    digitalWrite(left_dir_pin, LOW);   // Left wheel backward
+    digitalWrite(right_dir_pin, HIGH);   // Right wheel forward
     
     while (average() < target_count) 
     {
-        analogWrite(left_pwm_pin, TURN_SPEED * 0.5);   // Left wheel slower for sharper turn
+        analogWrite(left_pwm_pin, TURN_SPEED * 0.9);   // Left wheel slower for sharper turn
         analogWrite(right_pwm_pin, TURN_SPEED);         // Right wheel at full turn speed
     }
     
@@ -233,7 +233,7 @@ void loop()
     } 
     else if (track_position >= HALF_LOOP_FORWARD && track_position < HALF_LOOP_FORWARD + 20) 
     {
-      turn_half_loop_forward();
+      turn_half_forward();
     }
     else if (track_position >= LOOP_2_FORWARD && track_position < LOOP_2_FORWARD + 20) //loop 2
     {
@@ -253,7 +253,7 @@ void loop()
     } 
     else if (track_position >= HALF_LOOP_BACKWARD && track_position < HALF_LOOP_BACKWARD + 20) //loop 1
     {
-      turn_half_loop_backward();
+      turn_half_backward();
     } 
     else if (track_position >= LOOP_1_BACKWARD && track_position < LOOP_1_BACKWARD + 20) //loop 1
     {
