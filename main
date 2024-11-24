@@ -7,8 +7,8 @@ int minimums[8] = {643, 573, 572, 458, 526, 503, 597, 573};
 int maximums[8] = {1857, 1916, 1928, 705, 1276, 1275, 1845, 1927};
 int weights[8] = {15, 14, 12, 8, -8, -12, -14, -15};
 int error_value=0;
-float kp = 0.015;
-float kd = 0.04;
+float kp = 0.025;
+float kd = 0.08;
 float current = 0;
 float past = 0;
 float difference = 0;
@@ -22,22 +22,22 @@ const int left_pwm_pin=40;
 const int right_pwm_pin=39;
 
 const int LED_RF = 41;
-int wheel_speed = 30;
-const int TURN_SPEED = 40; // ADJUST
-const int TURN_270_COUNT = 555; // ADJUST
+int wheel_speed = 80;
+const int TURN_SPEED = 100; // ADJUST
+const int TURN_270_COUNT = 535; // ADJUST
 const int TURN_HALF_COUNT = 200; //ADJUST
 const int TURN_180_COUNT = 350; //ADJUST
 
 // Track position variables
 int track_position = 0;
-const int LOOP_1_FORWARD = 440; 
-const int HALF_LOOP_FORWARD = 1500; 
-const int LOOP_2_FORWARD = 3500; 
-const int END_POINT_1 = 6150; //ADJUST
-const int LOOP_2_BACKWARD = 8930; //ADJUST
-const int HALF_LOOP_BACKWARD = 10870; //ADJUST
-const int LOOP_1_BACKWARD = 11600; //ADJUST
-const int FINAL_END = 12700; //ADJUST
+const int LOOP_1_FORWARD = 510; 
+const int HALF_LOOP_FORWARD = 1630; 
+const int LOOP_2_FORWARD = 3620; 
+const int END_POINT_1 = 6450; //ADJUST
+const int LOOP_2_BACKWARD = 9420; //ADJUST
+const int HALF_LOOP_BACKWARD = 11450; //ADJUST
+const int LOOP_1_BACKWARD = 12250; //ADJUST
+const int FINAL_END = 13400; //ADJUST
 
 bool is_forward = true;
 
@@ -53,7 +53,6 @@ void stop_car()
 {
   analogWrite(left_pwm_pin, 0);
   analogWrite(right_pwm_pin, 0);
-  delay(10);  // Short delay to ensure the car has stopped
 }
 
 void turn_270_forward() 
@@ -61,13 +60,13 @@ void turn_270_forward()
   int initial_count = average();
   int target_count = initial_count + TURN_270_COUNT;
   
-  digitalWrite(left_dir_pin, LOW);   // Left wheel forward
-  digitalWrite(right_dir_pin, HIGH);   // Right wheel backward
+  digitalWrite(left_dir_pin, LOW);   // Left wheel backward
+  digitalWrite(right_dir_pin, HIGH);   // Right wheel forward
   
   while (average() < target_count) 
   {
     analogWrite(left_pwm_pin, TURN_SPEED);
-    analogWrite(right_pwm_pin, TURN_SPEED*0.9);
+    analogWrite(right_pwm_pin, TURN_SPEED*0.3);
   }
   
   stop_car();
@@ -82,13 +81,13 @@ void turn_half_forward()
   int initial_count = average();
   int target_count = initial_count + TURN_HALF_COUNT; // Adjust this as needed
   
-  digitalWrite(left_dir_pin, HIGH);    // Left wheel forward
-  digitalWrite(right_dir_pin, LOW);  // Right wheel backward
+  digitalWrite(left_dir_pin, HIGH);    // Left wheel backward
+  digitalWrite(right_dir_pin, LOW);  // Right wheel forward
   
   while (average() < target_count) 
   {
-    analogWrite(left_pwm_pin, TURN_SPEED);        // Left wheel at full turn speed
-    analogWrite(right_pwm_pin, TURN_SPEED * 0.9); // Right wheel slightly slower
+    analogWrite(left_pwm_pin, TURN_SPEED*0.4);        // Left wheel at full turn speed
+    analogWrite(right_pwm_pin, TURN_SPEED ); // Right wheel slightly slower
   }
   
   stop_car();
@@ -101,7 +100,7 @@ void turn_half_forward()
 void turn_180_forward() 
 {
   int initial_count = average();
-  int target_count = initial_count + TURN_180_COUNT-110;
+  int target_count = initial_count + TURN_180_COUNT-120;
   
   digitalWrite(left_dir_pin, LOW);   // Left wheel forward
   digitalWrite(right_dir_pin, HIGH);   // Right wheel backward
@@ -109,7 +108,7 @@ void turn_180_forward()
   while (average() < target_count) 
   {
     analogWrite(left_pwm_pin, TURN_SPEED);
-    analogWrite(right_pwm_pin, TURN_SPEED*0.9);  // Reduce right wheel speed for right turn
+    analogWrite(right_pwm_pin, TURN_SPEED*0.6);  // Reduce right wheel speed for right turn
 
   }
   
@@ -142,14 +141,14 @@ void turn_180()
 void turn_180_backward() 
 {
   int initial_count = average();
-  int target_count = initial_count + TURN_180_COUNT-110;
+  int target_count = initial_count + TURN_180_COUNT-85;
   
   digitalWrite(left_dir_pin, HIGH);    // Left wheel backward
   digitalWrite(right_dir_pin, LOW);  // Right wheel forward
   
   while (average() < target_count) 
   {
-    analogWrite(left_pwm_pin, TURN_SPEED);
+    analogWrite(left_pwm_pin, TURN_SPEED*0.6);
     analogWrite(right_pwm_pin, TURN_SPEED);
   }
   
@@ -168,7 +167,7 @@ void turn_270_backward()
   
   while (average() < target_count) 
   {
-    analogWrite(left_pwm_pin, TURN_SPEED * 0.9);  // Reduce left wheel speed for left turn
+    analogWrite(left_pwm_pin, TURN_SPEED * 0.3);  // Reduce left wheel speed for left turn
     analogWrite(right_pwm_pin, TURN_SPEED);
   }
   
@@ -182,15 +181,15 @@ void turn_270_backward()
 void turn_half_backward() 
 {
     int initial_count = average();
-    int target_count = initial_count + TURN_HALF_COUNT-40; // Sharp turn for half loop
+    int target_count = initial_count + TURN_HALF_COUNT; // Sharp turn for half loop
     
     digitalWrite(left_dir_pin, LOW);   // Left wheel backward
     digitalWrite(right_dir_pin, HIGH);   // Right wheel forward
     
     while (average() < target_count) 
     {
-        analogWrite(left_pwm_pin, TURN_SPEED * 0.9);   // Left wheel slower for sharper turn
-        analogWrite(right_pwm_pin, TURN_SPEED);         // Right wheel at full turn speed
+        analogWrite(left_pwm_pin, TURN_SPEED);   // Left wheel slower for sharper turn
+        analogWrite(right_pwm_pin, TURN_SPEED*0.4);         // Right wheel at full turn speed
     }
     
     stop_car();
